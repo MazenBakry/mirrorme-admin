@@ -21,6 +21,7 @@ interface Product {
   category: string;
   gender: string;
   object_url: string;
+  ml_id: number;
 }
 
 export default function InventoryPage() {
@@ -210,6 +211,39 @@ function ProductsTable({ categories, setCategories, catLoading }: { categories: 
 
   const handleDelete = async (id: string) => {
     setDeleting(true);
+   
+    // First, get the product to find its ml_id
+    const productToDelete = products.find(p => p.id === id);
+    if (!productToDelete) {
+      setDeleting(false);
+      setPendingDelete(null);
+      alert('Product not found');
+      return;
+    }
+   
+    // Helper function to delete from API
+    async function deleteFromApi(url: string) {
+      const res = await fetch(url, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(`API error: ${url} - ${msg}`);
+      }
+    }
+   
+    try {
+      // Delete from all three external APIs
+      await deleteFromApi(`https://similarity-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
+      await deleteFromApi(`https://outfit-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
+     // await deleteFromApi(`https://compatibility-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
+    } catch (apiErr) {
+      setDeleting(false);
+      setPendingDelete(null);
+      alert('Failed to delete from external APIs: ' + (apiErr instanceof Error ? apiErr.message : String(apiErr)));
+      return;
+    }
+   
     const { error } = await supabase.from('products').delete().eq('id', id);
     setDeleting(false);
     setPendingDelete(null);
@@ -548,49 +582,59 @@ function AddProductModal({ onClose, categories, setCategories, catLoading }: { o
     formData.append('id', mlId.toString());
     formData.append('category', categoryToUse);
     formData.append('image', imageFile, imageFile.name);
-    try {
-      const res = await fetch('https://outfit-model-production.up.railway.app/api/v1/items', {
+
+    // Helper function to post to API
+    async function postToApi(url: string) {
+      const res = await fetch(url, {
         method: 'POST',
         body: formData,
       });
       if (!res.ok) {
         const msg = await res.text();
-        throw new Error(msg || 'Failed to add product to external API.');
+        throw new Error(`API error: ${url} - ${msg}`);
       }
-    } catch (apiErr) {
-      setError('External API error: ' + (apiErr instanceof Error ? apiErr.message : String(apiErr)));
-      setLoading(false);
-      return;
     }
 
-    const { error } = await supabase.from('products').insert([
-      {
-        name: form.name,
-        image_url: imageUrl,
-        price: parseFloat(form.price),
-        category: categoryToUse,
-        gender: form.gender,
-        ml_id: mlId,
-      },
-    ]);
-    setLoading(false);
-    if (error) {
-      setError(error.message || 'Failed to add product.');
-    } else {
-      // If a new category was just added, update categories state immediately
-      if (showNewCategoryInput && newCategory.trim() && !categories.includes(newCategory.trim())) {
-        setCategories([newCategory.trim(), ...categories]);
+    try {
+      // Post to all three external APIs
+      await postToApi('https://outfit-model-production.up.railway.app/api/v1/items');
+      await postToApi('https://similarity-model-production.up.railway.app/api/v1/items');
+     // await postToApi('https://compatibility-model-production.up.railway.app/api/v1/items');
+      
+
+      const { error } = await supabase.from('products').insert([
+        {
+          name: form.name,
+          image_url: imageUrl,
+          price: parseFloat(form.price),
+          category: categoryToUse,
+          gender: form.gender,
+          ml_id: mlId,
+        },
+      ]);
+      setLoading(false);
+      if (error) {
+        setError(error.message || 'Failed to add product.');
+      } else {
+        // If a new category was just added, update categories state immediately
+        if (showNewCategoryInput && newCategory.trim() && !categories.includes(newCategory.trim())) {
+          setCategories([newCategory.trim(), ...categories]);
+        }
+        setSuccess('Product added successfully!');
+        // Reset form for next add, keep modal open
+        setForm({ name: '', image_url: '', price: '', category: '', gender: '' });
+        setImageFile(null);
+        setImagePreview(null);
+        setNewCategory('');
+        setShowNewCategoryInput(false);
+        setTimeout(() => {
+          setSuccess(null);
+        }, 1200);
       }
-      setSuccess('Product added successfully!');
-      // Reset form for next add, keep modal open
-      setForm({ name: '', image_url: '', price: '', category: '', gender: '' });
-      setImageFile(null);
-      setImagePreview(null);
-      setNewCategory('');
-      setShowNewCategoryInput(false);
-      setTimeout(() => {
-        setSuccess(null);
-      }, 1200);
+    } catch (apiErr) {
+      setError('External API error: ' + (apiErr instanceof Error ? apiErr.message : String(apiErr)) || 'Failed to add product to external APIs.');
+      setLoading(false);
+      return;
     }
   };
 
