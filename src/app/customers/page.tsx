@@ -25,9 +25,9 @@ export default function CustomersPage() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[#181114] dark group/design-root overflow-x-hidden font-sans">
       <div className="flex flex-col h-full layout-container grow">
-        <div className="flex justify-center flex-1 gap-1 px-6 py-5">
+        <div className="flex flex-1 gap-1 justify-center px-6 py-5">
           {/* Sidebar */}
-          <aside className="flex flex-col layout-content-container w-80">
+          <aside className="flex flex-col w-80 layout-content-container">
             <div className="flex h-full min-h-[700px] flex-col justify-between bg-[#181114] p-4">
               <div className="flex flex-col gap-4">
                 <h1 className="text-base font-medium leading-normal text-white">
@@ -62,7 +62,7 @@ export default function CustomersPage() {
           </aside>
           {/* Main Content */}
           <main className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div className="flex flex-wrap justify-between gap-3 p-4">
+            <div className="flex flex-wrap gap-3 justify-between p-4">
               <p className="text-white tracking-light text-[32px] font-bold leading-tight min-w-72">
                 Customers
               </p>
@@ -111,8 +111,11 @@ function CustomersTable() {
   }, [search]);
 
   const handleDelete = async (id: string) => {
-    const error = deleteCustomer(id);
     setDeleting(true);
+    setError(null);
+    setDeleteSuccess(null);
+    setPendingDelete(id);
+    const error = await deleteCustomer(id);
     setDeleting(false);
     setPendingDelete(null);
     if (!error) {
@@ -179,7 +182,7 @@ function CustomersTable() {
     <div>
       {/* Modern Delete Confirmation Modal */}
       {pendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+        <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
           <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col gap-4 border border-[#39282e] animate-fadeIn">
             <h2 className="text-white text-lg font-extrabold mb-1 tracking-tight text-center pb-1 border-b border-[#39282e]">
               Delete Customer
@@ -187,10 +190,10 @@ function CustomersTable() {
             <p className="text-[#ba9ca7] text-center">
               Are you sure you want to delete this customer?
             </p>
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex flex-col gap-1 items-center">
               <span className="font-semibold text-white">{pendingDelete}</span>
             </div>
-            <div className="flex justify-center gap-4 mt-2">
+            <div className="flex gap-4 justify-center mt-2">
               <button
                 className="px-4 py-2 rounded-lg bg-[#39282e] text-white font-semibold hover:bg-[#543b44] transition border border-[#543b44]"
                 onClick={() => setPendingDelete(null)}
@@ -199,7 +202,7 @@ function CustomersTable() {
                 Cancel
               </button>
               <button
-                className="px-4 py-2 font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
+                className="px-4 py-2 font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
                 onClick={() => handleDelete(pendingDelete)}
                 disabled={deleting}
               >
@@ -210,7 +213,7 @@ function CustomersTable() {
         </div>
       )}
       {deleteSuccess && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black z-60 bg-opacity-40 animate-fadeIn">
+        <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
           <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
             <button
               className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -241,7 +244,7 @@ function CustomersTable() {
         </div>
       )}
       {/* Search bar - modern UI */}
-      <div className="flex items-center justify-between px-2 py-4 mb-8">
+      <div className="flex justify-between items-center px-2 py-4 mb-8">
         <div className="relative w-full max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b16cea] pointer-events-none">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
@@ -342,7 +345,7 @@ function CustomersTable() {
               </td>
               <td className="h-[56px] px-4 py-2 flex items-center justify-center">
                 <button
-                  className="px-3 py-1 text-xs font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
+                  className="px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
                   onClick={() => setPendingDelete(customer.id)}
                 >
                   Delete
@@ -352,7 +355,7 @@ function CustomersTable() {
           ))}
         </tbody>
       </table>
-      <div className="flex items-center justify-center mt-6">
+      <div className="flex justify-center items-center mt-6">
         <nav className="flex gap-2 bg-[#22161b] rounded-xl px-4 py-2 shadow-lg">
           <button
             className="px-3 py-1 rounded-lg text-white bg-[#39282e] hover:bg-[#543b44] transition disabled:opacity-40"
