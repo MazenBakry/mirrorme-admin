@@ -11,7 +11,8 @@ import {
   ListBulletsIcon,
 } from "../../components/Icons";
 import { useRouter } from "next/navigation";
-import { getAllCustomers, getAllProducts } from "@/actions/customers";
+import { getAllCustomers } from "@/actions/customers";
+import { getAllProducts } from "@/actions/products";
 
 export default function DashboardPage() {
   const [totalProducts, setTotalProducts] = React.useState(0);
@@ -53,9 +54,9 @@ export default function DashboardPage() {
         Logout
       </button>
       <div className="flex flex-col h-full layout-container grow">
-        <div className="flex justify-center flex-1 gap-1 px-6 py-5">
+        <div className="flex flex-1 gap-1 justify-center px-6 py-5">
           {/* Sidebar */}
-          <aside className="flex flex-col layout-content-container w-80">
+          <aside className="flex flex-col w-80 layout-content-container">
             <div className="flex h-full min-h-[700px] flex-col justify-between bg-[#181114] p-4">
               <div className="flex flex-col gap-4">
                 <h1 className="text-base font-medium leading-normal text-white">
@@ -94,7 +95,7 @@ export default function DashboardPage() {
           </aside>
           {/* Main Content */}
           <main className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div className="flex flex-wrap justify-between gap-3 p-4">
+            <div className="flex flex-wrap gap-3 justify-between p-4">
               <p className="text-white tracking-light text-[32px] font-bold leading-tight min-w-72">
                 Dashboard
               </p>

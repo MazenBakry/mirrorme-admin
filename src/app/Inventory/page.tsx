@@ -9,9 +9,16 @@ import {
   UsersIcon,
   ListBulletsIcon,
 } from "../../components/Icons";
-import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import { getCategories } from "@/actions/products";
+import {
+  getProductStats,
+  getPaginatedProducts,
+  deleteProductById,
+  getLastMlId,
+  uploadProductImage,
+  insertProduct,
+  updateProduct,
+} from "@/actions/products";
 
 // Define a Product type based on expected fields from your products table
 interface Product {
@@ -47,77 +54,22 @@ export default function InventoryPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      // Total products
-      const { count } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true });
-      setTotalProducts(count ?? 0);
-
-      // Total categories
-      const { data: catData } = await supabase
-        .from("products")
-        .select("category");
-      if (catData) {
-        const uniqueCategories = new Set(
-          (catData as Product[]).map((p) => p.category)
-        );
-        setTotalCategories(uniqueCategories.size);
-      }
-
-      // Average price
-      const { data: priceData } = await supabase
-        .from("products")
-        .select("price");
-      if (priceData && priceData.length > 0) {
-        const avg =
-          (priceData as Product[]).reduce((sum, p) => sum + (p.price || 0), 0) /
-          priceData.length;
-        setAveragePrice(Number(avg.toFixed(2)));
-      }
-
-      // Gender distribution
-      const { data: genderData } = await supabase
-        .from("products")
-        .select("gender");
-      if (genderData) {
-        const stats: { [key: string]: number } = {};
-        (genderData as Product[]).forEach((p) => {
-          if (p.gender) {
-            stats[p.gender] = (stats[p.gender] || 0) + 1;
-          }
-        });
-        setGenderStats(stats);
-      }
+      const stats = await getProductStats();
+      setTotalProducts(stats.totalProducts);
+      setTotalCategories(stats.totalCategories);
+      setAveragePrice(stats.averagePrice);
+      setGenderStats(stats.genderStats);
+      setCategories(stats.uniqueCategories);
     };
     fetchStats();
-  }, []);
-
-  // Fetch unique categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      setCatLoading(true);
-      const { data, error } = await getCategories();
-      if (!error && data) {
-        const unique = Array.from(
-          new Set(
-            (data as { category: string }[])
-              .map((p) => p.category)
-              .filter(Boolean)
-          )
-        );
-        setCategories(unique);
-      }
-      setCatLoading(false);
-    };
-    fetchCategories();
   }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#181114] dark group/design-root overflow-x-hidden font-sans">
       <div className="flex flex-col h-full layout-container grow">
-        <div className="flex justify-center flex-1 gap-1 px-6 py-5">
+        <div className="flex flex-1 gap-1 justify-center px-6 py-5">
           {/* Sidebar */}
-          <aside className="flex flex-col layout-content-container w-80">
+          <aside className="flex flex-col w-80 layout-content-container">
             <div className="flex h-full min-h-[700px] flex-col justify-between bg-[#181114] p-4">
               <div className="flex flex-col gap-4">
                 <h1 className="text-base font-medium leading-normal text-white">
@@ -152,7 +104,7 @@ export default function InventoryPage() {
           </aside>
           {/* Main Content */}
           <main className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div className="flex flex-wrap justify-between gap-3 p-4">
+            <div className="flex flex-wrap gap-3 justify-between p-4">
               <p className="text-white tracking-light text-[32px] font-bold leading-tight min-w-72">
                 Inventory
               </p>
@@ -252,22 +204,12 @@ function ProductsTable({
     const fetchProducts = async () => {
       setLoading(true);
       setError(null);
-      let query = supabase
-        .from("products")
-        .select("*", { count: "exact" })
-        .order("id", { ascending: true });
-      if (debouncedSearch.trim()) {
-        query = query.or(
-          `name.ilike.%${debouncedSearch}%,category.ilike.%${debouncedSearch}%,gender.ilike.%${debouncedSearch}%`
-        );
-      }
-      // Fetch total count for pagination
-      const { count } = await query.range(0, 0);
-      setTotalCount(count ?? 0);
-      // Fetch products for current page
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, error } = await query.range(from, to);
+      const { data, count, error } = await getPaginatedProducts({
+        page,
+        pageSize,
+        search: debouncedSearch,
+      });
+      setTotalCount(count);
       if (error) {
         setError(error.message);
       } else {
@@ -278,51 +220,10 @@ function ProductsTable({
     fetchProducts();
   }, [page, debouncedSearch]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, ml_id: number) => {
     setDeleting(true);
-
-    // First, get the product to find its ml_id
-    const productToDelete = products.find((p) => p.id === id);
-    if (!productToDelete) {
-      setDeleting(false);
-      setPendingDelete(null);
-      alert("Product not found");
-      return;
-    }
-
-    // Helper function to delete from API
-    async function deleteFromApi(url: string) {
-      const res = await fetch(url, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(`API error: ${url} - ${msg}`);
-      }
-    }
-
-    try {
-      // Delete from all three external APIs
-      await deleteFromApi(
-        `https://similarity-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`
-      );
-      await deleteFromApi(
-        `https://outfit-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`
-      );
-      await deleteFromApi(
-        `https://compatibility-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`
-      );
-    } catch (apiErr) {
-      setDeleting(false);
-      setPendingDelete(null);
-      alert(
-        "Failed to delete from external APIs: " +
-          (apiErr instanceof Error ? apiErr.message : String(apiErr))
-      );
-      return;
-    }
-
-    const { error } = await supabase.from("products").delete().eq("id", id);
+    // External API deletion should be handled here if needed
+    const { error } = await deleteProductById({ id, ml_id });
     setDeleting(false);
     setPendingDelete(null);
     if (!error) {
@@ -340,20 +241,34 @@ function ProductsTable({
     setShowEditModal(true);
   };
 
-  const handleEditSave = async (updated: Product) => {
-    const { error } = await supabase
-      .from("products")
-      .update({
-        name: updated.name,
-        image_url: updated.image_url,
-        price: updated.price,
-        category: updated.category,
-        gender: updated.gender,
-      })
-      .eq("id", updated.id);
+  const handleEditSave = async (updated: Product, imageFile?: File) => {
+    let imageUrl = updated.image_url;
+    if (imageFile) {
+      const fileExt = imageFile.name.split(".").pop();
+      const fileName = `product_${Date.now()}.${fileExt}`;
+      const { publicUrl, error: uploadError } = await uploadProductImage({
+        file: imageFile,
+        fileName,
+      });
+      if (uploadError) {
+        alert("Image upload failed: " + uploadError);
+        return;
+      }
+      imageUrl = publicUrl;
+    }
+    const { error } = await updateProduct({
+      id: updated.id,
+      name: updated.name,
+      image_url: imageUrl,
+      price: updated.price,
+      category: updated.category,
+      gender: updated.gender,
+    });
     if (!error) {
       setProducts((prev) =>
-        prev.map((p) => (p.id === updated.id ? updated : p))
+        prev.map((p) =>
+          p.id === updated.id ? { ...updated, image_url: imageUrl } : p
+        )
       );
       setShowEditModal(false);
       setEditProduct(null);
@@ -394,7 +309,7 @@ function ProductsTable({
     <div>
       {/* Modern Delete Confirmation Modal */}
       {pendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+        <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
           <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col gap-4 border border-[#39282e] animate-fadeIn">
             <h2 className="text-white text-lg font-extrabold mb-1 tracking-tight text-center pb-1 border-b border-[#39282e]">
               Delete Product
@@ -402,7 +317,7 @@ function ProductsTable({
             <p className="text-[#ba9ca7] text-center">
               Are you sure you want to delete this product?
             </p>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col gap-2 items-center">
               <span className="font-semibold text-white">
                 ID: {pendingDelete.id}
               </span>
@@ -412,7 +327,7 @@ function ProductsTable({
                 className="w-24 h-24 object-cover rounded border border-[#543b44]"
               />
             </div>
-            <div className="flex justify-center gap-4 mt-2">
+            <div className="flex gap-4 justify-center mt-2">
               <button
                 className="px-4 py-2 rounded-lg bg-[#39282e] text-white font-semibold hover:bg-[#543b44] transition border border-[#543b44]"
                 onClick={() => setPendingDelete(null)}
@@ -421,8 +336,10 @@ function ProductsTable({
                 Cancel
               </button>
               <button
-                className="px-4 py-2 font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
-                onClick={() => handleDelete(pendingDelete.id)}
+                className="px-4 py-2 font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
+                onClick={() =>
+                  handleDelete(pendingDelete.id, pendingDelete.ml_id)
+                }
                 disabled={deleting}
               >
                 {deleting ? "Deleting..." : "Delete"}
@@ -432,7 +349,7 @@ function ProductsTable({
         </div>
       )}
       {deleteSuccess && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black z-60 bg-opacity-40 animate-fadeIn">
+        <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
           <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
             <button
               className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -463,7 +380,7 @@ function ProductsTable({
         </div>
       )}
       {/* Search bar - modern UI */}
-      <div className="flex items-center justify-between px-2 py-4 mb-8">
+      <div className="flex justify-between items-center px-2 py-4 mb-8">
         <div className="relative w-full max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b16cea] pointer-events-none">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
@@ -512,25 +429,25 @@ function ProductsTable({
       <table className="flex-1 min-w-full">
         <thead>
           <tr className="bg-[#271b20]">
-            <th className="w-40 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-40 text-sm font-medium leading-normal text-left text-white">
               Product ID
             </th>
-            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
               Image
             </th>
-            <th className="w-64 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-64 text-sm font-medium leading-normal text-left text-white">
               Name
             </th>
-            <th className="w-40 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-40 text-sm font-medium leading-normal text-left text-white">
               Category
             </th>
-            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
               Price
             </th>
-            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
               Gender
             </th>
-            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
+            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
               Actions
             </th>
           </tr>
@@ -561,7 +478,7 @@ function ProductsTable({
                 {product.gender}
               </td>
               <td className="h-[56px] px-4 py-2 w-32">
-                <div className="flex items-center justify-center h-full gap-2">
+                <div className="flex gap-2 justify-center items-center h-full">
                   <button
                     className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#b16cea] to-[#ff5e69] text-white font-semibold text-xs hover:from-[#a259c6] hover:to-[#ff7e8a] transition shadow"
                     onClick={() => handleEdit(product)}
@@ -569,7 +486,7 @@ function ProductsTable({
                     Edit
                   </button>
                   <button
-                    className="px-3 py-1 text-xs font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
+                    className="px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
                     onClick={() => setPendingDelete(product)}
                   >
                     Delete
@@ -580,7 +497,7 @@ function ProductsTable({
           ))}
         </tbody>
       </table>
-      <div className="flex items-center justify-center mt-6">
+      <div className="flex justify-center items-center mt-6">
         <nav className="flex gap-2 bg-[#22161b] rounded-xl px-4 py-2 shadow-lg">
           <button
             className="px-3 py-1 rounded-lg text-white bg-[#39282e] hover:bg-[#543b44] transition disabled:opacity-40"
@@ -670,16 +587,8 @@ function AddProductModal({
   // Fetch the last ml_id when modal opens
   useEffect(() => {
     const fetchLastMlId = async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("ml_id")
-        .order("ml_id", { ascending: false })
-        .limit(1);
-      if (!error && data && data.length > 0) {
-        setMlId((data[0].ml_id ?? 0) + 1);
-      } else {
-        setMlId(1); // start from 1 if no products
-      }
+      const { mlId } = await getLastMlId();
+      setMlId(mlId);
     };
     fetchLastMlId();
   }, []);
@@ -715,22 +624,18 @@ function AddProductModal({
     setSuccess(null);
     let imageUrl = form.image_url;
     if (imageFile) {
-      // Upload image to Supabase Storage
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `product_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(fileName, imageFile);
+      const { publicUrl, error: uploadError } = await uploadProductImage({
+        file: imageFile,
+        fileName,
+      });
       if (uploadError) {
-        setError("Image upload failed: " + uploadError.message);
+        setError("Image upload failed: " + uploadError);
         setLoading(false);
         return;
       }
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from("product-images")
-        .getPublicUrl(fileName);
-      imageUrl = publicUrlData.publicUrl;
+      imageUrl = publicUrl;
     }
 
     // Use newCategory if provided
@@ -744,51 +649,19 @@ function AddProductModal({
       return;
     }
 
-    // Post to external API with FormData
-    const formData = new FormData();
-    formData.append("id", mlId.toString());
-    formData.append("category", categoryToUse);
-    formData.append("image", imageFile, imageFile.name);
-
-    // Helper function to post to API
-    async function postToApi(url: string) {
-      const res = await fetch(url, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(`API error: ${url} - ${msg}`);
-      }
-    }
-
     try {
-      // Post to all three external APIs
-      await postToApi(
-        "https://outfit-model-production.up.railway.app/api/v1/items"
-      );
-      await postToApi(
-        "https://similarity-model-production.up.railway.app/api/v1/items"
-      );
-      await postToApi(
-        "https://compatibility-model-production.up.railway.app/api/v1/items"
-      );
-
-      const { error } = await supabase.from("products").insert([
-        {
-          name: form.name,
-          image_url: imageUrl,
-          price: parseFloat(form.price),
-          category: categoryToUse,
-          gender: form.gender,
-          ml_id: mlId,
-        },
-      ]);
+      const { error } = await insertProduct({
+        name: form.name,
+        image_url: imageUrl,
+        price: parseFloat(form.price),
+        category: categoryToUse,
+        gender: form.gender,
+        ml_id: mlId,
+      });
       setLoading(false);
       if (error) {
         setError(error.message || "Failed to add product.");
       } else {
-        // If a new category was just added, update categories state immediately
         if (
           showNewCategoryInput &&
           newCategory.trim() &&
@@ -797,7 +670,6 @@ function AddProductModal({
           setCategories([newCategory.trim(), ...categories]);
         }
         setSuccess("Product added successfully!");
-        // Reset form for next add, keep modal open
         setForm({
           name: "",
           image_url: "",
@@ -815,9 +687,8 @@ function AddProductModal({
       }
     } catch (apiErr) {
       setError(
-        "External API error: " +
-          (apiErr instanceof Error ? apiErr.message : String(apiErr)) ||
-          "Failed to add product to external APIs."
+        (apiErr instanceof Error ? apiErr.message : String(apiErr)) ||
+          "Failed to add product."
       );
       setLoading(false);
       return;
@@ -825,7 +696,7 @@ function AddProductModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+    <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
       <form
         onSubmit={handleSubmit}
         className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-4 rounded-xl shadow-2xl w-full max-w-md flex flex-col gap-4 border border-[#39282e] relative animate-fadeIn"
@@ -853,7 +724,7 @@ function AddProductModal({
           </label>
         </div>
         {/* Image File */}
-        <div className="relative flex flex-col gap-2">
+        <div className="flex relative flex-col gap-2">
           <label
             htmlFor="add-image-file"
             className="text-[#b16cea] text-xs font-semibold"
@@ -937,7 +808,7 @@ function AddProductModal({
             </svg>
           </div>
           {showNewCategoryInput && (
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex gap-2 items-center mt-2">
               <input
                 type="text"
                 value={newCategory}
@@ -1006,7 +877,7 @@ function AddProductModal({
           </div>
         )}
         {success && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black z-60 bg-opacity-40 animate-fadeIn">
+          <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
             <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
               <button
                 className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -1043,7 +914,7 @@ function AddProductModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 text-base font-bold text-white transition border-none rounded-lg shadow bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900"
+            className="flex-1 py-2 text-base font-bold text-white bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg border-none shadow transition hover:from-gray-700 hover:to-gray-900"
             disabled={loading}
           >
             Cancel
@@ -1071,7 +942,7 @@ function EditProductModal({
 }: {
   product: Product;
   onClose: () => void;
-  onSave: (p: Product) => void;
+  onSave: (p: Product, imageFile?: File) => void;
   categories: string[];
   setCategories: (c: string[]) => void;
   catLoading: boolean;
@@ -1125,42 +996,14 @@ function EditProductModal({
     e.preventDefault();
     setSaving(true);
     setError(null);
-    let imageUrl = form.image_url;
-    if (imageFile) {
-      // Upload image to Supabase Storage
-      const fileExt = imageFile.name.split(".").pop();
-      const fileName = `product_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(fileName, imageFile);
-      if (uploadError) {
-        setError("Image upload failed: " + uploadError.message);
-        setSaving(false);
-        return;
-      }
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from("product-images")
-        .getPublicUrl(fileName);
-      imageUrl = publicUrlData.publicUrl;
-    }
-    // Use newCategory if provided
-    const categoryToUse =
-      showNewCategoryInput && newCategory.trim()
-        ? newCategory.trim()
-        : form.category;
-    if (!categoryToUse) {
-      setError("Category is required.");
-      setSaving(false);
-      return;
-    }
     try {
-      await onSave({
-        ...form,
-        price: parseFloat(String(form.price)),
-        image_url: imageUrl,
-        category: categoryToUse,
-      });
+      await onSave(
+        {
+          ...form,
+          price: parseFloat(String(form.price)),
+        },
+        imageFile || undefined
+      );
       if (
         showNewCategoryInput &&
         newCategory.trim() &&
@@ -1182,7 +1025,7 @@ function EditProductModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+    <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
       <form
         onSubmit={handleSubmit}
         className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-4 rounded-xl shadow-2xl w-full max-w-md flex flex-col gap-4 border border-[#39282e] relative animate-fadeIn"
@@ -1210,7 +1053,7 @@ function EditProductModal({
           </label>
         </div>
         {/* Image File */}
-        <div className="relative flex flex-col gap-2">
+        <div className="flex relative flex-col gap-2">
           <label
             htmlFor="edit-image-file"
             className="text-[#b16cea] text-xs font-semibold"
@@ -1293,7 +1136,7 @@ function EditProductModal({
             </svg>
           </div>
           {showNewCategoryInput && (
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex gap-2 items-center mt-2">
               <input
                 type="text"
                 value={newCategory}
@@ -1362,7 +1205,7 @@ function EditProductModal({
           </div>
         )}
         {success && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black z-60 bg-opacity-40 animate-fadeIn">
+          <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
             <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
               <button
                 className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -1399,7 +1242,7 @@ function EditProductModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 text-base font-bold text-white transition border-none rounded-lg shadow bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900"
+            className="flex-1 py-2 text-base font-bold text-white bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg border-none shadow transition hover:from-gray-700 hover:to-gray-900"
             disabled={saving}
           >
             Cancel

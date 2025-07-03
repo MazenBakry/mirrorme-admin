@@ -25,9 +25,9 @@ export default function CategoriesPage() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[#181114] dark group/design-root overflow-x-hidden font-sans">
       <div className="flex flex-col h-full layout-container grow">
-        <div className="flex justify-center flex-1 gap-1 px-6 py-5">
+        <div className="flex flex-1 gap-1 justify-center px-6 py-5">
           {/* Sidebar */}
-          <aside className="flex flex-col layout-content-container w-80">
+          <aside className="flex flex-col w-80 layout-content-container">
             <div className="flex h-full min-h-[700px] flex-col justify-between bg-[#181114] p-4">
               <div className="flex flex-col gap-4">
                 <h1 className="text-base font-medium leading-normal text-white">
@@ -62,7 +62,7 @@ export default function CategoriesPage() {
           </aside>
           {/* Main Content */}
           <main className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div className="flex flex-wrap justify-between gap-3 p-4">
+            <div className="flex flex-wrap gap-3 justify-between p-4">
               <p className="text-white tracking-light text-[32px] font-bold leading-tight min-w-72">
                 Categories
               </p>
@@ -93,7 +93,7 @@ function CategoriesTable() {
     const fetchCategories = async () => {
       setLoading(true);
       setError(null);
-      const { data, error } = getCategories();
+      const { data, error } = await getCategories();
       if (error) {
         setError(error.message);
       } else {
@@ -130,7 +130,7 @@ function CategoriesTable() {
           <th className="px-4 py-3 text-left text-white w-[200px] text-sm font-medium leading-normal">
             Product Count
           </th>
-          <th className="px-4 py-3 text-sm font-medium leading-normal text-center text-white w-60">
+          <th className="px-4 py-3 w-60 text-sm font-medium leading-normal text-center text-white">
             Actions
           </th>
         </tr>
@@ -145,7 +145,7 @@ function CategoriesTable() {
               {cat.count}
             </td>
             <td className="h-[72px] px-4 py-2 w-60 flex items-center justify-center">
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex gap-2 justify-center items-center">
                 <button
                   className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#b16cea] to-[#ff5e69] text-white font-semibold text-xs hover:from-[#a259c6] hover:to-[#ff7e8a] transition shadow"
                   // onClick={() => handleEdit(cat)}
@@ -154,7 +154,7 @@ function CategoriesTable() {
                   Edit
                 </button>
                 <button
-                  className="px-3 py-1 text-xs font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
+                  className="px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
                   // onClick={() => handleDelete(cat.name)}
                   disabled
                 >
