@@ -54,12 +54,14 @@ export default function InventoryPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
+      setCatLoading(true);
       const stats = await getProductStats();
       setTotalProducts(stats.totalProducts);
       setTotalCategories(stats.totalCategories);
       setAveragePrice(stats.averagePrice);
       setGenderStats(stats.genderStats);
       setCategories(stats.uniqueCategories);
+      setCatLoading(false);
     };
     fetchStats();
   }, []);
