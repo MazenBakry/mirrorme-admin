@@ -2,6 +2,16 @@
 
 import { supabase } from "@/lib/supabaseClient";
 
+export interface Customer {
+  id: string;
+  phone: string;
+  height: number;
+  weight: number;
+  body_shape: string;
+  skin_tone: string;
+  gender: string;
+}
+
 export async function deleteCustomer(id: string) {
   const { error } = await supabase.from("profiles").delete().eq("id", id);
   return error;
@@ -33,7 +43,7 @@ export async function getCustomers({
 
   const { data, error } = await query.range(from, to);
 
-  return { data, count, error };
+  return { data: data as Customer[], count, error };
 }
 
 export async function getAllCustomers() {

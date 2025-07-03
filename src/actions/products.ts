@@ -2,6 +2,17 @@
 
 import { supabase } from "@/lib/supabaseClient";
 
+export interface Product {
+  id?: string;
+  name: string;
+  image_url: string;
+  price: number;
+  category: string;
+  gender: string;
+  object_url?: string;
+  ml_id: number;
+}
+
 export async function getCategories() {
   const { data, error } = await supabase
     .from("products")
@@ -26,14 +37,14 @@ export async function getProductStats() {
 
   const { data: catData } = await supabase.from("products").select("category");
   const uniqueCategories = catData
-    ? Array.from(new Set(catData.map((p: any) => p.category)))
+    ? Array.from(new Set(catData.map((p: { category: string }) => p.category)))
     : [];
 
   const { data: priceData } = await supabase.from("products").select("price");
   let averagePrice = null;
   if (priceData && priceData.length > 0) {
     const avg =
-      priceData.reduce((sum: number, p: any) => sum + (p.price || 0), 0) /
+      priceData.reduce((sum: number, p: { price: number }) => sum + (p.price || 0), 0) /
       priceData.length;
     averagePrice = Number(avg.toFixed(2));
   }
@@ -41,7 +52,7 @@ export async function getProductStats() {
   const { data: genderData } = await supabase.from("products").select("gender");
   const genderStats: { [key: string]: number } = {};
   if (genderData) {
-    genderData.forEach((p: any) => {
+    genderData.forEach((p: { gender: string }) => {
       if (p.gender) {
         genderStats[p.gender] = (genderStats[p.gender] || 0) + 1;
       }
@@ -88,10 +99,8 @@ export async function getPaginatedProducts({
 // Delete a product by ID
 export async function deleteProductById({
   id,
-  ml_id,
 }: {
   id: string;
-  ml_id: number;
 }) {
   // External API deletion should be handled in the client or a separate server action if needed
   const { error } = await supabase.from("products").delete().eq("id", id);
@@ -133,46 +142,19 @@ export async function uploadProductImage({
 }
 
 // Insert a new product
-export async function insertProduct({
-  name,
-  image_url,
-  price,
-  category,
-  gender,
-  ml_id,
-}: {
-  name: string;
-  image_url: string;
-  price: number;
-  category: string;
-  gender: string;
-  ml_id: number;
-}) {
+export async function insertProduct(product: Product) {
   const { error } = await supabase
     .from("products")
-    .insert([{ name, image_url, price, category, gender, ml_id }]);
+    .insert([product]);
   return { error };
 }
 
 // Update a product
-export async function updateProduct({
-  id,
-  name,
-  image_url,
-  price,
-  category,
-  gender,
-}: {
-  id: string;
-  name: string;
-  image_url: string;
-  price: number;
-  category: string;
-  gender: string;
-}) {
+export async function updateProduct(product: Partial<Product> & { id: string }) {
+  const { id, ...updates } = product;
   const { error } = await supabase
     .from("products")
-    .update({ name, image_url, price, category, gender })
+    .update(updates)
     .eq("id", id);
   return { error };
 }
