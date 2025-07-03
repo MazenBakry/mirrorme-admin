@@ -10,8 +10,8 @@ import {
   UsersIcon,
   ListBulletsIcon,
 } from "../../components/Icons";
-import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { getAllCustomers, getAllProducts } from "@/actions/customers";
 
 export default function DashboardPage() {
   const [totalProducts, setTotalProducts] = React.useState(0);
@@ -19,20 +19,19 @@ export default function DashboardPage() {
   const router = useRouter();
   React.useEffect(() => {
     const fetchStats = async () => {
-      const { count: prodCount, error: prodError } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true });
+      const { count: prodCount, error: prodError } = await getAllProducts();
       if (!prodError) setTotalProducts(prodCount ?? 0);
-      const { count: custCount, error: custError } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
+      const { count: custCount, error: custError } = await getAllCustomers();
       if (!custError) setActiveCustomers(custCount ?? 0);
     };
     fetchStats();
   }, []);
 
   React.useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("admin_logged_in") !== "true") {
+    if (
+      typeof window !== "undefined" &&
+      localStorage.getItem("admin_logged_in") !== "true"
+    ) {
       router.replace("/");
     }
   }, [router]);
@@ -53,21 +52,42 @@ export default function DashboardPage() {
       >
         Logout
       </button>
-      <div className="layout-container flex h-full grow flex-col">
-        <div className="gap-1 px-6 flex flex-1 justify-center py-5">
+      <div className="flex flex-col h-full layout-container grow">
+        <div className="flex justify-center flex-1 gap-1 px-6 py-5">
           {/* Sidebar */}
-          <aside className="layout-content-container flex flex-col w-80">
+          <aside className="flex flex-col layout-content-container w-80">
             <div className="flex h-full min-h-[700px] flex-col justify-between bg-[#181114] p-4">
               <div className="flex flex-col gap-4">
-                <h1 className="text-white text-base font-medium leading-normal">
+                <h1 className="text-base font-medium leading-normal text-white">
                   Store Admin
                 </h1>
                 <nav className="flex flex-col gap-2">
-                  <SidebarLink icon={HomeIcon} label="Dashboard" href="/dashboard" active />
-                  <SidebarLink icon={PackageIcon} label="Inventory" href="/Inventory" />
-                  <SidebarLink icon={ReceiptIcon} label="Orders" href="/orders" />
-                  <SidebarLink icon={UsersIcon} label="Customers" href="/customers" />
-                  <SidebarLink icon={ListBulletsIcon} label="Categories" href="/categories" />
+                  <SidebarLink
+                    icon={HomeIcon}
+                    label="Dashboard"
+                    href="/dashboard"
+                    active
+                  />
+                  <SidebarLink
+                    icon={PackageIcon}
+                    label="Inventory"
+                    href="/Inventory"
+                  />
+                  <SidebarLink
+                    icon={ReceiptIcon}
+                    label="Orders"
+                    href="/orders"
+                  />
+                  <SidebarLink
+                    icon={UsersIcon}
+                    label="Customers"
+                    href="/customers"
+                  />
+                  <SidebarLink
+                    icon={ListBulletsIcon}
+                    label="Categories"
+                    href="/categories"
+                  />
                 </nav>
               </div>
             </div>
@@ -80,9 +100,15 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-4 p-4">
-              <StatCard label="Total Products" value={totalProducts.toString()} />
+              <StatCard
+                label="Total Products"
+                value={totalProducts.toString()}
+              />
               <StatCard label="Total Orders" value="350" />
-              <StatCard label="Active Customers" value={activeCustomers.toString()} />
+              <StatCard
+                label="Active Customers"
+                value={activeCustomers.toString()}
+              />
             </div>
             <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">
               Recent Orders
@@ -97,4 +123,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-} 
+}
