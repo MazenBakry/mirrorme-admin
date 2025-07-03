@@ -236,7 +236,7 @@ function ProductsTable({ categories, setCategories, catLoading }: { categories: 
       // Delete from all three external APIs
       await deleteFromApi(`https://similarity-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
       await deleteFromApi(`https://outfit-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
-     // await deleteFromApi(`https://compatibility-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
+      await deleteFromApi(`https://compatibility-model-production.up.railway.app/api/v1/items/${productToDelete.ml_id}`);
     } catch (apiErr) {
       setDeleting(false);
       setPendingDelete(null);
@@ -599,7 +599,7 @@ function AddProductModal({ onClose, categories, setCategories, catLoading }: { o
       // Post to all three external APIs
       await postToApi('https://outfit-model-production.up.railway.app/api/v1/items');
       await postToApi('https://similarity-model-production.up.railway.app/api/v1/items');
-     // await postToApi('https://compatibility-model-production.up.railway.app/api/v1/items');
+      await postToApi('https://compatibility-model-production.up.railway.app/api/v1/items');
       
 
       const { error } = await supabase.from('products').insert([

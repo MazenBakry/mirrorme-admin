@@ -14,13 +14,24 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "admin" && password === "admin123") {
-      localStorage.setItem("admin_logged_in", "true");
-      router.replace("/dashboard");
-    } else {
-      setError("Invalid username or password");
+    setError("");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        localStorage.setItem("admin_logged_in", "true");
+        router.replace("/dashboard");
+      } else {
+        setError(data.message || "Invalid username or password");
+      }
+    } catch {
+      setError("Login failed. Please try again.");
     }
   };
 
