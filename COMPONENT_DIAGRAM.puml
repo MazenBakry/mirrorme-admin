@@ -1,0 +1,52 @@
+@startuml
+' Component Diagram for MirrorMe Admin with Pink Theme
+
+skinparam component {
+  BackgroundColor #ffe0f0
+  BorderColor #ff5eaa
+  FontColor #b16cea
+}
+skinparam package {
+  BackgroundColor #fff0fa
+  BorderColor #ff5eaa
+  FontColor #b16cea
+}
+skinparam ArrowColor #ff5eaa
+
+package "App" #fff0fa {
+  [layout.tsx] #ffe0f0
+  [page.tsx] #ffe0f0
+}
+
+component SidebarLink #ffe0f0
+component StatCard #ffe0f0
+component OrdersTable #ffe0f0
+component Icons #ffe0f0
+component supabaseClient #ffe0f0
+component InventoryPage #ffe0f0
+component CustomersPage #ffe0f0
+component OrdersPage #ffe0f0
+component CategoriesPage #ffe0f0
+component AddProductModal #ffe0f0
+component EditProductModal #ffe0f0
+
+[layout.tsx] --> InventoryPage : pink
+[layout.tsx] --> CustomersPage : pink
+[layout.tsx] --> OrdersPage : pink
+[layout.tsx] --> CategoriesPage : pink
+InventoryPage --> AddProductModal : pink
+InventoryPage --> EditProductModal : pink
+InventoryPage --> SidebarLink : pink
+InventoryPage --> StatCard : pink
+InventoryPage --> supabaseClient : pink
+CustomersPage --> SidebarLink : pink
+CustomersPage --> supabaseClient : pink
+OrdersPage --> SidebarLink : pink
+CategoriesPage --> SidebarLink : pink
+CategoriesPage --> supabaseClient : pink
+SidebarLink --> Icons : pink
+StatCard --> Icons : pink
+OrdersPage --> OrdersTable : pink
+OrdersTable --> supabaseClient : pink
+
+@enduml 
