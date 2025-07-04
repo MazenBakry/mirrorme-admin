@@ -1,8 +1,8 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
   }
 
   const { username, password } = req.body;
@@ -13,6 +13,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     // In a real app, set a secure cookie or JWT here
     return res.status(200).json({ success: true });
   } else {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid credentials" });
   }
-} 
+}

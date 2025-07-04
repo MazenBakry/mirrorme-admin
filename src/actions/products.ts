@@ -1,5 +1,6 @@
 "use server";
 
+import { addProductToModel, deleteProductFromModel } from "@/lib/modelClient";
 import { supabase } from "@/lib/supabaseClient";
 
 export interface Product {
@@ -44,8 +45,10 @@ export async function getProductStats() {
   let averagePrice = null;
   if (priceData && priceData.length > 0) {
     const avg =
-      priceData.reduce((sum: number, p: { price: number }) => sum + (p.price || 0), 0) /
-      priceData.length;
+      priceData.reduce(
+        (sum: number, p: { price: number }) => sum + (p.price || 0),
+        0
+      ) / priceData.length;
     averagePrice = Number(avg.toFixed(2));
   }
 
@@ -99,11 +102,22 @@ export async function getPaginatedProducts({
 // Delete a product by ID
 export async function deleteProductById({
   id,
+  ml_id,
 }: {
   id: string;
+  ml_id: number;
 }) {
   // External API deletion should be handled in the client or a separate server action if needed
   const { error } = await supabase.from("products").delete().eq("id", id);
+
+  try {
+    if (!error) {
+      await deleteProductFromModel(ml_id);
+    }
+  } catch (error) {
+    return { error };
+  }
+
   return { error };
 }
 
@@ -143,14 +157,18 @@ export async function uploadProductImage({
 
 // Insert a new product
 export async function insertProduct(product: Product) {
-  const { error } = await supabase
-    .from("products")
-    .insert([product]);
+  const { error } = await supabase.from("products").insert([product]);
   return { error };
 }
 
+export async function addProductToModels(formData: FormData) {
+  await addProductToModel(formData);
+}
+
 // Update a product
-export async function updateProduct(product: Partial<Product> & { id: string }) {
+export async function updateProduct(
+  product: Partial<Product> & { id: string }
+) {
   const { id, ...updates } = product;
   const { error } = await supabase
     .from("products")

@@ -18,13 +18,14 @@ import {
   uploadProductImage,
   insertProduct,
   updateProduct,
+  addProductToModels,
 } from "@/actions/products";
 
 // Define a Product type based on expected fields from your products table
 interface Product {
   id: string;
   name: string;
-  image_url: string;
+  image_url: string | undefined;
   price: number;
   category: string;
   gender: string;
@@ -69,7 +70,7 @@ export default function InventoryPage() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[#181114] dark group/design-root overflow-x-hidden font-sans">
       <div className="flex flex-col h-full layout-container grow">
-        <div className="flex flex-1 gap-1 justify-center px-6 py-5">
+        <div className="flex justify-center flex-1 gap-1 px-6 py-5">
           {/* Sidebar */}
           <aside className="flex flex-col w-80 layout-content-container">
             <div className="flex h-full min-h-[700px] flex-col justify-between bg-[#181114] p-4">
@@ -106,7 +107,7 @@ export default function InventoryPage() {
           </aside>
           {/* Main Content */}
           <main className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div className="flex flex-wrap gap-3 justify-between p-4">
+            <div className="flex flex-wrap justify-between gap-3 p-4">
               <p className="text-white tracking-light text-[32px] font-bold leading-tight min-w-72">
                 Inventory
               </p>
@@ -234,7 +235,7 @@ function ProductsTable({
       setDeleteSuccess("Product deleted successfully!");
       setTimeout(() => setDeleteSuccess(null), 1200);
     } else {
-      alert("Failed to delete product: " + error.message);
+      alert("Failed to delete product: " + error);
     }
   };
 
@@ -311,7 +312,7 @@ function ProductsTable({
     <div>
       {/* Modern Delete Confirmation Modal */}
       {pendingDelete && (
-        <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
           <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col gap-4 border border-[#39282e] animate-fadeIn">
             <h2 className="text-white text-lg font-extrabold mb-1 tracking-tight text-center pb-1 border-b border-[#39282e]">
               Delete Product
@@ -319,7 +320,7 @@ function ProductsTable({
             <p className="text-[#ba9ca7] text-center">
               Are you sure you want to delete this product?
             </p>
-            <div className="flex flex-col gap-2 items-center">
+            <div className="flex flex-col items-center gap-2">
               <span className="font-semibold text-white">
                 ID: {pendingDelete.id}
               </span>
@@ -329,7 +330,7 @@ function ProductsTable({
                 className="w-24 h-24 object-cover rounded border border-[#543b44]"
               />
             </div>
-            <div className="flex gap-4 justify-center mt-2">
+            <div className="flex justify-center gap-4 mt-2">
               <button
                 className="px-4 py-2 rounded-lg bg-[#39282e] text-white font-semibold hover:bg-[#543b44] transition border border-[#543b44]"
                 onClick={() => setPendingDelete(null)}
@@ -338,7 +339,7 @@ function ProductsTable({
                 Cancel
               </button>
               <button
-                className="px-4 py-2 font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
+                className="px-4 py-2 font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
                 onClick={() =>
                   handleDelete(pendingDelete.id, pendingDelete.ml_id)
                 }
@@ -351,7 +352,7 @@ function ProductsTable({
         </div>
       )}
       {deleteSuccess && (
-        <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-60 animate-fadeIn">
           <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
             <button
               className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -382,7 +383,7 @@ function ProductsTable({
         </div>
       )}
       {/* Search bar - modern UI */}
-      <div className="flex justify-between items-center px-2 py-4 mb-8">
+      <div className="flex items-center justify-between px-2 py-4 mb-8">
         <div className="relative w-full max-w-xs">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b16cea] pointer-events-none">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
@@ -431,25 +432,25 @@ function ProductsTable({
       <table className="flex-1 min-w-full">
         <thead>
           <tr className="bg-[#271b20]">
-            <th className="px-4 py-3 w-40 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-40 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Product ID
             </th>
-            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Image
             </th>
-            <th className="px-4 py-3 w-64 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-64 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Name
             </th>
-            <th className="px-4 py-3 w-40 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-40 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Category
             </th>
-            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Price
             </th>
-            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Gender
             </th>
-            <th className="px-4 py-3 w-32 text-sm font-medium leading-normal text-left text-white">
+            <th className="w-32 px-4 py-3 text-sm font-medium leading-normal text-left text-white">
               Actions
             </th>
           </tr>
@@ -480,7 +481,7 @@ function ProductsTable({
                 {product.gender}
               </td>
               <td className="h-[56px] px-4 py-2 w-32">
-                <div className="flex gap-2 justify-center items-center h-full">
+                <div className="flex items-center justify-center h-full gap-2">
                   <button
                     className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#b16cea] to-[#ff5e69] text-white font-semibold text-xs hover:from-[#a259c6] hover:to-[#ff7e8a] transition shadow"
                     onClick={() => handleEdit(product)}
@@ -488,7 +489,7 @@ function ProductsTable({
                     Edit
                   </button>
                   <button
-                    className="px-3 py-1 text-xs font-semibold text-white bg-gradient-to-r from-red-700 to-red-500 rounded-lg shadow transition hover:from-red-800 hover:to-red-600"
+                    className="px-3 py-1 text-xs font-semibold text-white transition rounded-lg shadow bg-gradient-to-r from-red-700 to-red-500 hover:from-red-800 hover:to-red-600"
                     onClick={() => setPendingDelete(product)}
                   >
                     Delete
@@ -499,7 +500,7 @@ function ProductsTable({
           ))}
         </tbody>
       </table>
-      <div className="flex justify-center items-center mt-6">
+      <div className="flex items-center justify-center mt-6">
         <nav className="flex gap-2 bg-[#22161b] rounded-xl px-4 py-2 shadow-lg">
           <button
             className="px-3 py-1 rounded-lg text-white bg-[#39282e] hover:bg-[#543b44] transition disabled:opacity-40"
@@ -637,7 +638,7 @@ function AddProductModal({
         setLoading(false);
         return;
       }
-      imageUrl = publicUrl;
+      imageUrl = publicUrl as string;
     }
 
     // Use newCategory if provided
@@ -652,6 +653,8 @@ function AddProductModal({
     }
 
     try {
+      setLoading(true);
+      setError("");
       const { error } = await insertProduct({
         name: form.name,
         image_url: imageUrl,
@@ -660,6 +663,11 @@ function AddProductModal({
         gender: form.gender,
         ml_id: mlId,
       });
+      const data = new FormData();
+      data.append("id", String(mlId));
+      data.append("category", categoryToUse);
+      data.append("image", imageFile);
+      await addProductToModels(data);
       setLoading(false);
       if (error) {
         setError(error.message || "Failed to add product.");
@@ -698,7 +706,7 @@ function AddProductModal({
   };
 
   return (
-    <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
       <form
         onSubmit={handleSubmit}
         className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-4 rounded-xl shadow-2xl w-full max-w-md flex flex-col gap-4 border border-[#39282e] relative animate-fadeIn"
@@ -726,7 +734,7 @@ function AddProductModal({
           </label>
         </div>
         {/* Image File */}
-        <div className="flex relative flex-col gap-2">
+        <div className="relative flex flex-col gap-2">
           <label
             htmlFor="add-image-file"
             className="text-[#b16cea] text-xs font-semibold"
@@ -810,7 +818,7 @@ function AddProductModal({
             </svg>
           </div>
           {showNewCategoryInput && (
-            <div className="flex gap-2 items-center mt-2">
+            <div className="flex items-center gap-2 mt-2">
               <input
                 type="text"
                 value={newCategory}
@@ -879,7 +887,7 @@ function AddProductModal({
           </div>
         )}
         {success && (
-          <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-60 animate-fadeIn">
             <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
               <button
                 className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -916,7 +924,7 @@ function AddProductModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 text-base font-bold text-white bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg border-none shadow transition hover:from-gray-700 hover:to-gray-900"
+            className="flex-1 py-2 text-base font-bold text-white transition border-none rounded-lg shadow bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900"
             disabled={loading}
           >
             Cancel
@@ -1027,7 +1035,7 @@ function EditProductModal({
   };
 
   return (
-    <div className="flex fixed inset-0 z-50 justify-center items-center bg-black bg-opacity-60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
       <form
         onSubmit={handleSubmit}
         className="bg-gradient-to-br from-[#22161b] to-[#271b20] p-4 rounded-xl shadow-2xl w-full max-w-md flex flex-col gap-4 border border-[#39282e] relative animate-fadeIn"
@@ -1055,7 +1063,7 @@ function EditProductModal({
           </label>
         </div>
         {/* Image File */}
-        <div className="flex relative flex-col gap-2">
+        <div className="relative flex flex-col gap-2">
           <label
             htmlFor="edit-image-file"
             className="text-[#b16cea] text-xs font-semibold"
@@ -1138,7 +1146,7 @@ function EditProductModal({
             </svg>
           </div>
           {showNewCategoryInput && (
-            <div className="flex gap-2 items-center mt-2">
+            <div className="flex items-center gap-2 mt-2">
               <input
                 type="text"
                 value={newCategory}
@@ -1207,7 +1215,7 @@ function EditProductModal({
           </div>
         )}
         {success && (
-          <div className="flex fixed inset-0 justify-center items-center bg-black bg-opacity-40 z-60 animate-fadeIn">
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-60 animate-fadeIn">
             <div className="bg-gradient-to-br from-[#22161b] to-[#271b20] border border-[#39282e] rounded-2xl shadow-2xl px-8 py-8 flex flex-col items-center gap-3 animate-fadeInUp relative min-w-[280px]">
               <button
                 className="absolute top-2 right-2 text-[#b16cea] hover:text-[#ff5e69] text-xl font-bold focus:outline-none"
@@ -1244,7 +1252,7 @@ function EditProductModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 text-base font-bold text-white bg-gradient-to-r from-gray-600 to-gray-800 rounded-lg border-none shadow transition hover:from-gray-700 hover:to-gray-900"
+            className="flex-1 py-2 text-base font-bold text-white transition border-none rounded-lg shadow bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900"
             disabled={saving}
           >
             Cancel
